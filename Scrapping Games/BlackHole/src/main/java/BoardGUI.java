@@ -1,0 +1,198 @@
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.GridLayout;
+import java.awt.event.ActionEvent;
+
+import javax.swing.AbstractAction;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.KeyStroke;
+
+import enums.Direction;
+import gamestate.Board;
+import gamestate.Cell;
+
+public class BoardGUI {
+
+    private JButton[][] buttons;
+    private Board board;
+    public JPanel boardPanel;
+    private int currentX = -1; // Tracks the selected ship's X-coordinate
+    private int currentY = -1; // Tracks the selected ship's Y-coordinate
+    private JFrame parentFrame; 
+
+    public BoardGUI(JFrame parentFrame) { 
+        this.parentFrame = parentFrame; 
+        initializeGame(5);
+    }
+
+    public void initializeGame(int boardSize) {
+        currentX = -1;
+        currentY = -1;
+        boardPanel = new JPanel();
+        board = new Board(boardSize);
+        boardPanel.removeAll();
+        boardPanel.setLayout(new GridLayout(boardSize, boardSize));
+        buttons = new JButton[boardSize][boardSize];
+        
+        for (int i = 0; i < boardSize; ++i) {
+            for (int j = 0; j < boardSize; ++j) {
+                JButton button = new JButton();
+                button.setPreferredSize(new Dimension(80, 40));
+                button.setFocusable(false);
+                buttons[i][j] = button;
+                boardPanel.add(button);
+                int x = i;
+                int y = j;
+                button.addActionListener(e -> handleShipSelection(x, y));
+            }
+        }
+        refreshAll();
+
+        boardPanel.revalidate();
+        boardPanel.repaint();
+    
+        setupKeyBindings();
+    }
+    
+    
+
+    private void handleShipSelection(int x, int y) {
+        Cell cell = board.getCell(x, y);
+
+        if ((cell.getStatus() == enums.BoardStatus.SHIP_1 && board.getTurn() == enums.PlayerTurn.TURN_1) ||
+            (cell.getStatus() == enums.BoardStatus.SHIP_2 && board.getTurn() == enums.PlayerTurn.TURN_2)) {
+
+            if (currentX != -1 && currentY != -1) {
+                refresh(currentX, currentY);
+            }
+
+            currentX = x;
+            currentY = y;
+
+            if (cell.getStatus() == enums.BoardStatus.SHIP_1) {
+                buttons[x][y].setBackground(Color.decode("#f67c7c"));
+            } else if (cell.getStatus() == enums.BoardStatus.SHIP_2) {
+                buttons[x][y].setBackground(Color.decode("#636db5"));
+            }
+    
+        } else {
+            JOptionPane.showMessageDialog(boardPanel, "Invalid selection! Please select your own ship.", "Warning", JOptionPane.WARNING_MESSAGE);
+        }
+    }
+    
+
+
+    private void setupKeyBindings() {
+        boardPanel.getInputMap(JPanel.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke('w'), "moveUp");
+        boardPanel.getInputMap(JPanel.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke('s'), "moveDown");
+        boardPanel.getInputMap(JPanel.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke('a'), "moveLeft");
+        boardPanel.getInputMap(JPanel.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke('d'), "moveRight");
+    
+        boardPanel.getActionMap().put("moveUp", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (currentX > 0) {
+                    move(Direction.UP);
+                } else {
+                    System.out.println("Cannot move further UP.");
+                }
+            }
+        });
+    
+        boardPanel.getActionMap().put("moveDown", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (currentX < board.getBoardSize() - 1) {
+                    move(Direction.DOWN);
+                } else {
+                    System.out.println("Cannot move further DOWN.");
+                }
+            }
+        });
+    
+        boardPanel.getActionMap().put("moveLeft", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (currentY > 0) {
+                    move(Direction.LEFT);
+                } else {
+                    System.out.println("Cannot move further LEFT.");
+                }
+            }
+        });
+    
+        boardPanel.getActionMap().put("moveRight", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (currentY < board.getBoardSize() - 1) {
+                    move(Direction.RIGHT);
+                } else {
+                    System.out.println("Cannot move further RIGHT.");
+                }
+            }
+        });
+    }
+
+    private void move(Direction direction) {
+        if (currentX == -1 || currentY == -1) {
+            JOptionPane.showMessageDialog(boardPanel, "Select a ship first!", "Warning", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        board.traverse(currentX, currentY, direction);
+        refreshAll();
+        checkGameEnd();
+        }
+    
+        private void refreshAll() {
+        for (int i = 0; i < board.getBoardSize(); i++) {
+            for (int j = 0; j < board.getBoardSize(); j++) {
+                refresh(i, j);
+            }
+        }
+        }
+    
+        private void refresh(int x, int y) {
+            JButton button = buttons[x][y];
+            Cell cell = board.getCell(x, y);
+            Color color;
+
+            switch (cell.getStatus()) {
+                case EMPTY:
+                    color = Color.WHITE;
+                    break;
+                case SHIP_1:
+                    color = Color.RED;
+                    break;
+                case SHIP_2:
+                    color = Color.CYAN;
+                    break;
+                case BLACKHOLE:
+                    color = Color.BLACK;
+                    break;
+                default:
+                    color = Color.GRAY; 
+            }
+        
+            button.setBackground(color);
+            button.setText(""); 
+        }
+        
+    
+        private void checkGameEnd() {
+            if (board.isOver()) {
+                JOptionPane.showMessageDialog(boardPanel, board.winnerAnnouncer(), "Game Finished!", JOptionPane.PLAIN_MESSAGE);
+                restartGame();
+            }
+        }
+
+        private void restartGame() {
+            if (parentFrame != null) { 
+                parentFrame.dispose();
+            }
+            new GameFrame(); 
+        }
+        
+}
